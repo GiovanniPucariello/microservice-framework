@@ -36,9 +36,9 @@ public class RecipeStepDefs {
     }
 
     @When("the method (.*) is called on the aggregate (.*)")
-    public void add_new_receipe_2(final String methodName, String aggregate, final String message) throws Exception {
+    public void add_new_receipe_2(final String methodName, final String aggregate, final String message) throws Exception {
         checkIfAggregateCreated(aggregate);
-        Class<?>[] pType = paramTypes(methodName);
+        Class<?>[] pType = paramsTypes(methodName);
         ObjectMapper mapper = new ObjectMapper();
         JsonNode actualNode = mapper.readTree(message);
         Map argumentsMap = mapper.convertValue(actualNode, Map.class);
@@ -87,21 +87,15 @@ public class RecipeStepDefs {
         }
     }
 
-    private Class<?>[] paramTypes(String methodName) {
-        Method[] allMethods = clazz.getDeclaredMethods();
-        Class<?>[] pType = null;
-        for (Method m : allMethods) {
+    private Class<?>[] paramsTypes(final String methodName) {
+        Class<?>[] paramsTypes = null;
+        for (Method m : clazz.getDeclaredMethods()) {
             if (!m.getName().equals(methodName)) {
                 continue;
             }
-            pType = m.getParameterTypes();
-            Type[] gpType = m.getGenericParameterTypes();
-            for (int i = 0; i < pType.length; i++) {
-                out.format(fmt, "ParameterType", pType[i]);
-                out.format(fmt, "GenericParameterType", gpType[i]);
-            }
+            paramsTypes = m.getParameterTypes();
         }
-        return pType;
+        return paramsTypes;
     }
 
     private void checkIfUUID(final List argumentValues) {
