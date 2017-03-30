@@ -1,9 +1,13 @@
+# 1) The Event Classes should have Declared Fields and Constructor params in same order
+# 2) Json should contain the Events and following json in same order
+# 3) Event json object should be in order according to constructor parameters
+
 Feature: Recipe Management
 
   Scenario: Add a recipe in system
 
     Given no previous events
-    When the method addRecipe is called on the aggregate uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe
+    When addRecipe is called on the Recipe
  """
   {
   "recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
@@ -23,30 +27,28 @@ Feature: Recipe Management
   """
     Then the events are generated with following data
   """
-  {
-  "recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
-  "name": "cheese cake",
-  "glutenFree": true,
-  "ingredients": [{
-  "name": "custard",
-  "quantity": 2
-  }, {
-  "name": "egg",
-  "quantity": 6
-  }, {
-  "name": "sugar",
-  "quantity": 500
-  }],
-  "events": [
-  "uk.gov.justice.services.example.cakeshop.domain.event.RecipeAdded"
-  ]
-  }
-  """
+[{
+	"eventName": "example.recipe-added",
+	"recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
+	"name": "cheese cake",
+	"glutenFree": true,
+	"ingredients": [{
+		"name": "custard",
+		"quantity": 2
+	}, {
+		"name": "egg",
+		"quantity": 6
+	}, {
+		"name": "sugar",
+		"quantity": 500
+	}]
+}]
+"""
 
   Scenario: Rename a recipe in system
 
     Given no previous events
-    When the method addRecipe is called on the aggregate uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe
+    When addRecipe is called on the Recipe
  """
   {
   "recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
@@ -66,26 +68,24 @@ Feature: Recipe Management
   """
     Then the events are generated with following data
   """
-  {
-  "recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
-  "name": "cheese cake",
-  "glutenFree": true,
-  "ingredients": [{
-  "name": "custard",
-  "quantity": 2
-  }, {
-  "name": "egg",
-  "quantity": 6
-  }, {
-  "name": "sugar",
-  "quantity": 500
-  }],
-  "events": [
-  "uk.gov.justice.services.example.cakeshop.domain.event.RecipeAdded"
-  ]
-  }
+[{
+	"eventName": "example.recipe-added",
+	"recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
+	"name": "cheese cake",
+	"glutenFree": true,
+	"ingredients": [{
+		"name": "custard",
+		"quantity": 2
+	}, {
+		"name": "egg",
+		"quantity": 6
+	}, {
+		"name": "sugar",
+		"quantity": 500
+	}]
+}]
   """
-    When the method renameRecipe is called on the aggregate uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe
+    When renameRecipe is called on the Recipe
   """
   {
   "name": "apple pie"
@@ -93,19 +93,17 @@ Feature: Recipe Management
   """
     Then the events are generated with following data
   """
-  {
-  "name": "cheese cake",
-  "events": [
-  "uk.gov.justice.services.example.cakeshop.domain.event.RecipeRenamed"
-  ]
-  }
+  [{
+  	"eventName": "example.recipe-renamed",
+  	"recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
+  	"name": "apple pie"
+  }]
   """
-
 
   Scenario: Remove a recipe in system
 
     Given no previous events
-    When the method addRecipe is called on the aggregate uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe
+    When addRecipe is called on the Recipe
  """
   {
   "recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
@@ -125,44 +123,40 @@ Feature: Recipe Management
   """
     Then the events are generated with following data
   """
-  {
-  "recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
-  "name": "cheese cake",
-  "glutenFree": true,
-  "ingredients": [{
-  "name": "custard",
-  "quantity": 2
-  }, {
-  "name": "egg",
-  "quantity": 6
-  }, {
-  "name": "sugar",
-  "quantity": 500
-  }],
-  "events": [
-  "uk.gov.justice.services.example.cakeshop.domain.event.RecipeAdded"
-  ]
-  }
+[{
+	"eventName": "example.recipe-added",
+	"recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
+	"name": "cheese cake",
+	"glutenFree": true,
+	"ingredients": [{
+		"name": "custard",
+		"quantity": 2
+	}, {
+		"name": "egg",
+		"quantity": 6
+	}, {
+		"name": "sugar",
+		"quantity": 500
+	}]
+}]
   """
-
-    When the method removeRecipe is called on the aggregate uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe
+    When removeRecipe is called on the Recipe
   """
   {
   }
   """
     Then the events are generated with following data
   """
-  {
-  "events": [
-  "uk.gov.justice.services.example.cakeshop.domain.event.RecipeRemoved"
-  ]
-  }
+ [{
+  	"eventName": "example.recipe-removed",
+  	"recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671"
+  }]
   """
 
   Scenario: Make Cake
 
     Given no previous events
-    When the method addRecipe is called on the aggregate uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe
+    When addRecipe is called on the Recipe
  """
   {
   "recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
@@ -181,39 +175,36 @@ Feature: Recipe Management
   }
   """
     Then the events are generated with following data
-  """
-  {
-  "recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
-  "name": "cheese cake",
-  "glutenFree": true,
-  "ingredients": [{
-  "name": "custard",
-  "quantity": 2
-  }, {
-  "name": "egg",
-  "quantity": 6
-  }, {
-  "name": "sugar",
-  "quantity": 500
-  }],
-  "events": [
-  "uk.gov.justice.services.example.cakeshop.domain.event.RecipeAdded"
-  ]
-  }
-  """
 
-    When the method makeCake is called on the aggregate uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe
+  """
+[{
+	"eventName": "example.recipe-added",
+	"recipeId": "5c5a1d30-0414-11e7-93ae-92361f002671",
+	"name": "cheese cake",
+	"glutenFree": true,
+	"ingredients": [{
+		"name": "custard",
+		"quantity": 2
+	}, {
+		"name": "egg",
+		"quantity": 6
+	}, {
+		"name": "sugar",
+		"quantity": 500
+	}]
+}]
+"""
+    When makeCake is called on the Recipe
   """
   {
   "cakeId": "005d6a20-7efe-4697-afa3-2cbb282ec82f"
   }
   """
     Then the events are generated with following data
+
   """
-  {
-  "cakeId": "005d6a20-7efe-4697-afa3-2cbb282ec82f",
-  "events": [
-  "uk.gov.justice.services.example.cakeshop.domain.event.CakeMade"
-  ]
-  }
+[{
+  	"eventName": "example.cake-made",
+  	"cakeId": "005d6a20-7efe-4697-afa3-2cbb282ec82f"
+  }]
   """
