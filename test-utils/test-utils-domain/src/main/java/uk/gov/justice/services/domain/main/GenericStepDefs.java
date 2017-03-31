@@ -1,4 +1,4 @@
-package uk.gov.justice.services.domain;
+package uk.gov.justice.services.domain.main;
 
 import static java.util.stream.Collectors.toList;
 

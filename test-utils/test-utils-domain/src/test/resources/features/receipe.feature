@@ -28,7 +28,7 @@ Feature: Recipe Management
   "name": "cheese cake",
   "glutenFree": true,
   "ingredients": [{
-  "name": "custardd",
+  "name": "custard",
   "quantity": 2
   }, {
   "name": "egg",
