@@ -16,6 +16,8 @@ import uk.gov.justice.services.messaging.JsonObjectEnvelopeConverter;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -36,15 +38,15 @@ public class GenericStepDefs {
     private Stream<Object> events;
     private Class<?> clazz;
     private Object object;
-    private JsonObjectEnvelopeConverter converter = new JsonObjectEnvelopeConverter();
 
     @Given("no previous events")
     public void no_previous_events() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
         assert events == null;
     }
 
-    @When("(.*) is called on the (.*)")
-    public void call_method_with_params(final String methodName, final String aggregate, final String message) throws Exception {
+    @When("(.*) is called on the (.*) with (.*)")
+    public void call_method_with_params(final String methodName, final String aggregate, final String fileName) throws Exception {
+        String message = json(fileName);
         createAggregate(aggregate);
         Class<?>[] pType = paramsTypes(methodName);
         ObjectMapper mapper = new ObjectMapper();
@@ -57,9 +59,14 @@ public class GenericStepDefs {
         Method method = object.getClass().getMethod(methodName, pType);
         if (argumentsMap.size() == 0) {
             events = (Stream<Object>) method.invoke(object, null);
+
         } else {
             events = (Stream<Object>) method.invoke(object, methodArgs);
         }
+    }
+
+    private String json(String file) throws IOException {
+        return new String(Files.readAllBytes(Paths.get("src/test/resources/json/" + file)));
     }
 
     private List<String> getAllEventNames(Map argumentsMap) {
@@ -175,10 +182,10 @@ public class GenericStepDefs {
         throw new IllegalArgumentException("Don't know how to convert to " + target);
     }
 
-    @Then("the events are generated with following data")
-    public void new_recipe_event_generated(final String message) throws ClassNotFoundException,
+    @Then("the events are generated with (.*)")
+    public void new_recipe_event_generated(final String fileName) throws ClassNotFoundException,
             IOException, IllegalAccessException, InstantiationException {
-
+        String message = json(fileName);
         ObjectMapper mapper = mapper();
         final ArrayNode fromJson = (ArrayNode) mapper.readTree(message);
         final List fromEvents = events.collect(Collectors.toList());
@@ -186,19 +193,16 @@ public class GenericStepDefs {
         assertEquals(fromJson.size(), fromEvents.size());
 
         for (int index = 0; index < fromEvents.size(); index++) {
-            assertTrue(fromJson.get(index).path("eventName").asText().equalsIgnoreCase(eventName(fromEvents.get(index))));
+            String eventNameFromJson = fromJson.get(index).get("_metadata").path("name").asText();
+            assertTrue(eventNameFromJson.equalsIgnoreCase(eventName(fromEvents.get(index))));
             removeEventNameElement(fromJson, index);
-            Iterator i1 = fromJson.get(index).elements();
-            Iterator i2 = mapper.valueToTree(fromEvents.get(index)).elements();
-            while (i1.hasNext() && i2.hasNext()) {
-                assertTrue(i1.next().equals(i2.next()));
-            }
+            assertTrue(fromJson.get(index).equals(mapper.valueToTree(fromEvents.get(index))));
         }
     }
 
     private void removeEventNameElement(ArrayNode ls1, int index) {
         ObjectNode object = (ObjectNode) ls1.get(index);
-        object.remove("eventName");
+        object.remove("_metadata");
     }
 
     private String eventName(Object obj) throws ClassNotFoundException {
