@@ -11,7 +11,6 @@ import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
 import org.apache.commons.lang3.StringUtils;
 import uk.gov.justice.domain.annotation.Event;
-import uk.gov.justice.services.messaging.JsonObjectEnvelopeConverter;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -195,12 +194,12 @@ public class GenericStepDefs {
         for (int index = 0; index < fromEvents.size(); index++) {
             String eventNameFromJson = fromJson.get(index).get("_metadata").path("name").asText();
             assertTrue(eventNameFromJson.equalsIgnoreCase(eventName(fromEvents.get(index))));
-            removeEventNameElement(fromJson, index);
+            removeMetaDataNode(fromJson, index);
             assertTrue(fromJson.get(index).equals(mapper.valueToTree(fromEvents.get(index))));
         }
     }
 
-    private void removeEventNameElement(ArrayNode ls1, int index) {
+    private void removeMetaDataNode(ArrayNode ls1, int index) {
         ObjectNode object = (ObjectNode) ls1.get(index);
         object.remove("_metadata");
     }
