@@ -47,16 +47,34 @@ public class GenericStepDefs {
     @When("(.*) to a (.*) using (.*)")
     public void call_method_with_params(final String methodName, final String aggregate, final String fileName) throws Exception {
         createAggregate(aggregate);
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = mapper();
         Map argumentsMap = mapper.convertValue(mapper.readTree(json(fileName)), Map.class);
         List valuesList = new ArrayList(argumentsMap.values());
         checkIfUUID(valuesList);
         Method method = object.getClass().getMethod(methodName, paramsTypes(methodName));
         if (argumentsMap.size() == 0) {
             events = (Stream<Object>) method.invoke(object, null);
-
         } else {
-            events = (Stream<Object>) method.invoke(object, methodArgs(valuesList, getAllEventNames(argumentsMap)));
+            events = (Stream<Object>) method.invoke(object, methodArgs(valuesList, getAllEventNames(argumentsMap), mapper));
+        }
+    }
+
+    @Then("the (.*)")
+    public void new_recipe_event_generated(final String fileName) throws ClassNotFoundException,
+            IOException, IllegalAccessException, InstantiationException {
+        String message = json(fileName);
+        ObjectMapper mapper = mapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        final ArrayNode fromJson = (ArrayNode) mapper.readTree(message);
+        final List fromEvents = events.collect(Collectors.toList());
+
+        assertEquals(fromJson.size(), fromEvents.size());
+
+        for (int index = 0; index < fromEvents.size(); index++) {
+            String eventNameFromJson = fromJson.get(index).get("_metadata").path("name").asText();
+            assertTrue(eventNameFromJson.equalsIgnoreCase(eventName(fromEvents.get(index))));
+            removeMetaDataNode(fromJson, index);//remove metadata node to compare two json objects
+            assertTrue(fromJson.get(index).equals(mapper.valueToTree(fromEvents.get(index))));
         }
     }
 
@@ -76,12 +94,11 @@ public class GenericStepDefs {
         return classNames;
     }
 
-    private Object[] methodArgs(List valuesList, List<String> expectedEventNames) throws Exception {
+    private Object[] methodArgs(List valuesList, List<String> expectedEventNames, ObjectMapper mapper) throws Exception {
         Object[] objects = new Object[valuesList.size()];
         int objectIndexInJson = 0;
         for (int index = 0; index < valuesList.size(); index++) {
             if (valuesList.get(index) instanceof HashMap) {
-                ObjectMapper mapper = new ObjectMapperProducer().objectMapper();
                 objects[index] = mapper.readValue(mapper.writeValueAsString(valuesList.get(index)),
                         classWithFullyQualifiedClassName(expectedEventNames.get(objectIndexInJson)));
                 objectIndexInJson = objectIndexInJson + 1;
@@ -110,25 +127,6 @@ public class GenericStepDefs {
             }
         }
         return clazz;
-    }
-
-    @Then("the (.*)")
-    public void new_recipe_event_generated(final String fileName) throws ClassNotFoundException,
-            IOException, IllegalAccessException, InstantiationException {
-        String message = json(fileName);
-        ObjectMapper mapper = mapper();
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        final ArrayNode fromJson = (ArrayNode) mapper.readTree(message);
-        final List fromEvents = events.collect(Collectors.toList());
-
-        assertEquals(fromJson.size(), fromEvents.size());
-
-        for (int index = 0; index < fromEvents.size(); index++) {
-            String eventNameFromJson = fromJson.get(index).get("_metadata").path("name").asText();
-            assertTrue(eventNameFromJson.equalsIgnoreCase(eventName(fromEvents.get(index))));
-            removeMetaDataNode(fromJson, index);//remove metadata node to compare two json objects
-            assertTrue(fromJson.get(index).equals(mapper.valueToTree(fromEvents.get(index))));
-        }
     }
 
     private void removeMetaDataNode(ArrayNode ls1, int index) {
