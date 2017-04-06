@@ -28,8 +28,8 @@ Feature: Recipe Management
   Scenario: Make Cake
 
     Given no previous events in system
-    When addRecipe to a Recipe using add-recipe
+    When addRecipe to a uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe using add-recipe
     Then the recipe-added
-    When makeCake to a Recipe using make-cake
+    When makeCake to a uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe using make-cake
     Then the cake-made
 

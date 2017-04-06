@@ -10,7 +10,16 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
+import org.reflections.util.ConfigurationBuilder;
+
 import org.apache.commons.lang3.StringUtils;
+import org.reflections.Reflections;
+import org.reflections.scanners.ResourcesScanner;
+import org.reflections.scanners.SubTypesScanner;
+import org.reflections.util.ClasspathHelper;
+import org.reflections.util.FilterBuilder;
+
+import uk.gov.justice.domain.aggregate.Aggregate;
 import uk.gov.justice.domain.annotation.Event;
 import uk.gov.justice.services.common.converter.JsonObjectToObjectConverter;
 import uk.gov.justice.services.common.converter.jackson.ObjectMapperProducer;
@@ -23,14 +32,18 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.reflections.util.ClasspathHelper.forClassLoader;
 
 public class GenericStepDefs {
     private Stream<Object> events;
@@ -109,26 +122,77 @@ public class GenericStepDefs {
         return objects;
     }
 
+    private static Class<?> classWithFullyQualifiedClassNameWithReflections(String className) {
+        Class<?> clazz = null;
+        for (final String packageName : findAllPackages()) {
+            final String tentative = packageName + "." + StringUtils.capitalize(className);
+            try {
+                clazz = Class.forName(tentative);
+            } catch (final ClassNotFoundException e) {
+                continue;
+            }
+            break;
+        }
+        return clazz;
+    }
+
+    private static Class<?> classWithPackage(final String className) {
+        System.out.println("Trying with Reflections");
+        final Class<?> clazz = classWithFullyQualifiedClassNameWithPackages(className);
+        if (clazz == null) {
+            System.out.println("Trying Packages as reflections dint work");
+            return classWithFullyQualifiedClassNameWithReflections(className);
+        }
+        System.out.println("Packages Worked");
+
+        return clazz;
+    }
+
+    private static Set<String> findAllPackages() {
+        List<ClassLoader> classLoadersList = new LinkedList<ClassLoader>();
+        //classLoadersList.add(ClasspathHelper.contextClassLoader());
+        classLoadersList.add(Thread.currentThread().getContextClassLoader());
+
+        Reflections reflections = new Reflections(new ConfigurationBuilder()
+                .setScanners(new SubTypesScanner(false), new ResourcesScanner())
+                .setUrls(forClassLoader(classLoadersList.toArray(new ClassLoader[0])))
+                .filterInputsBy(new FilterBuilder().include(".*.aggregate.*"))
+        );
+
+        Set<Class<? extends Aggregate>> classes = reflections.getSubTypesOf(Aggregate.class);
+        Set<String> packageNameSet = new TreeSet<String>();
+        for (Class classInstance : classes) {
+            packageNameSet.add(classInstance.getPackage().getName());
+        }
+        return packageNameSet;
+    }
+
     private static Class classWithFullyQualifiedClassName(String className) {
         Class<?> clazz = null;
         try {
             clazz = Class.forName(className);
         } catch (ClassNotFoundException e) {
-            final Package[] packages = Package.getPackages();
-            for (final Package p : packages) {
-                final String pack = p.getName();
-                final String tentative = pack + "." + StringUtils.capitalize(className);
-                try {
-                    clazz = Class.forName(tentative);
-                } catch (final ClassNotFoundException exception) {
-                    continue;
-                }
-                break;
-            }
+            classWithPackage(className);
         }
         return clazz;
     }
 
+    private static Class<?> classWithFullyQualifiedClassNameWithPackages(String className) {
+        Class<?> clazz = null;
+        final Package[] packages = Package.getPackages();
+        for (final Package p : packages) {
+            final String pack = p.getName();
+            final String tentative = pack + "." + StringUtils.capitalize(className);
+            try {
+                clazz = Class.forName(tentative);
+
+            } catch (final ClassNotFoundException e) {
+                continue;
+            }
+            break;
+        }
+        return clazz;
+    }
     private void removeMetaDataNode(ArrayNode ls1, int index) {
         ObjectNode object = (ObjectNode) ls1.get(index);
         object.remove("_metadata");
