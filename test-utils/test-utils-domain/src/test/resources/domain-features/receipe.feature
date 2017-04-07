@@ -33,3 +33,8 @@ Feature: Recipe Management
     When makeCake to a Recipe using make-cake
     Then the cake-made
 
+  Scenario: Rename a recipe with already existed events
+
+    Given there are previous events recipe-added
+    When renameRecipe to a uk.gov.justice.services.example.cakeshop.domain.aggregate.Recipe using rename-recipe
+    Then the recipe-renamed
