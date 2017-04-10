@@ -1,9 +1,9 @@
 package uk.gov.justice.services.domain.main;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import cucumber.api.java.en.Given;
@@ -35,8 +35,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class GenericStepDefs {
-    private Stream<Object> events;
-    private Stream<Object> eventsForAggregate;
+    private static final String METADATA = "_metadata";
+    private static final String NAME = "name";
+    private List givenEvents = new ArrayList();
+    private List generatedEvents = new ArrayList();
     private Class<?> clazz;
     private Aggregate object;
     @Inject
@@ -44,32 +46,31 @@ public class GenericStepDefs {
 
     @Given("no previous events")
     public void no_previous_events() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
-        assert events == null;
+        assert givenEvents.size() == 0;
     }
 
     @Given("there are previous events (.*)")
-    public void previous_events(final String fileNames) throws ClassNotFoundException, IllegalAccessException, InstantiationException, IOException, NoSuchFieldException {
+    public void previous_events(final String fileNames) throws Exception {
         String filesNames[] = fileNames.split(",");
         for (String fileName : filesNames) {
             String message = json(fileName);
             ObjectMapper mapper = new ObjectMapperProducer().objectMapper();
-            final ArrayNode fromJson = (ArrayNode) mapper.readTree(message);
-            for (int index = 0; index < fromJson.size(); index++) {
-                Reflections reflections = new Reflections("uk.gov");
-                Set<Class<?>> annotated = reflections.getTypesAnnotatedWith(Event.class);
-                for (Class<?> clazz : annotated) {
-                    if (clazz.getAnnotation(Event.class).value().equalsIgnoreCase(eventName(fromJson, index))) {
-                        removeMetaDataNode(fromJson, index);
-                        eventsForAggregate = Stream.of(mapper.readValue(mapper.writeValueAsString(fromJson.get(index)), clazz));
-                        break;
-                    }
+            final JsonNode fromJson = mapper.readTree(message);
+            Reflections reflections = new Reflections("uk.gov");
+            Set<Class<?>> annotated = reflections.getTypesAnnotatedWith(Event.class);
+            for (Class<?> clazz : annotated) {
+                if (clazz.getAnnotation(Event.class).value().equalsIgnoreCase(eventName(fromJson))) {
+                    removeMetaDataNode(fromJson);
+                    generatedEvents.add(mapper.readValue(mapper.writeValueAsString(fromJson), clazz));
+                    break;
                 }
             }
         }
     }
 
     @When("(.*) to a (.*) using (.*)")
-    public void call_method_with_params(final String methodName, final String aggregate, final String fileName) throws Exception {
+    public void call_method_with_params(final String methodName, final String aggregate, final String fileName)
+            throws Exception {
         createAggregate(aggregate);
         ObjectMapper mapper = new ObjectMapper();//normal mapper to get the map value in correct order
         Map argumentsMap = mapper.convertValue(mapper.readTree(json(fileName)), Map.class);
@@ -78,26 +79,29 @@ public class GenericStepDefs {
         checkIfUUID(valuesList);
         Method method = object.getClass().getMethod(methodName, paramsTypes(methodName));
         if (argumentsMap.size() == 0) {
-            events = (Stream<Object>) method.invoke(object, null);
+            givenEvents = ((Stream<Object>) method.invoke(object, null)).collect(Collectors.toList());
+            object.apply(givenEvents.stream());
         } else {
-            events = (Stream<Object>) method.invoke(object, methodArgs(valuesList, getAllEventNames(argumentsMap), mapper));
+            givenEvents = ((Stream<Object>) method.invoke(object,
+                    methodArgs(valuesList, getAllEventNames(argumentsMap),
+                            mapper))).
+                    collect(Collectors.toList());
+            object.apply(givenEvents.stream());
         }
     }
 
     @Then("the (.*)")
-    public void new_recipe_event_generated(final String fileName) throws ClassNotFoundException,
+    public void new_recipe_event_generated(final String fileNames) throws ClassNotFoundException,
             IOException, IllegalAccessException, InstantiationException {
-        String message = json(fileName);
-        ObjectMapper mapper = mapper();
-        final ArrayNode fromJson = (ArrayNode) mapper.readTree(message);
-        final List fromEvents = events.collect(Collectors.toList());
-
-        assertEquals(fromJson.size(), fromEvents.size());
-
-        for (int index = 0; index < fromEvents.size(); index++) {
-            assertTrue(eventName(fromJson, index).equalsIgnoreCase(eventName(fromEvents.get(index))));
-            removeMetaDataNode(fromJson, index);//remove metadata node to compare two json objects
-            assertTrue(fromJson.get(index).equals(mapper.valueToTree(fromEvents.get(index))));
+        String filesNames[] = fileNames.split(",");
+        for (int index = 0; index < filesNames.length; index++) {
+            String message = json(filesNames[index]);
+            ObjectMapper mapper = mapper();
+            final JsonNode fromJson = mapper.readTree(message);
+            assertEquals(filesNames.length, givenEvents.size());
+            assertTrue(fromJson.get(METADATA).get(NAME).asText().equalsIgnoreCase(eventName(givenEvents.get(index))));
+            removeMetaDataNode(fromJson);//remove metadata node to compare two json objects
+            assertTrue(fromJson.equals(mapper.valueToTree(givenEvents.get(index))));
         }
     }
 
@@ -140,9 +144,9 @@ public class GenericStepDefs {
         return clazz;
     }
 
-    private void removeMetaDataNode(ArrayNode ls1, int index) {
-        ObjectNode object = (ObjectNode) ls1.get(index);
-        object.remove("_metadata");
+    private void removeMetaDataNode(JsonNode node) {
+        ObjectNode object = (ObjectNode) node;
+        object.remove(METADATA);
     }
 
     private List<String> getAllEventNames(Map argumentsMap) {
@@ -157,8 +161,8 @@ public class GenericStepDefs {
         return classNames;
     }
 
-    private String eventName(ArrayNode fromJson, int index) {
-        return fromJson.get(index).get("_metadata").path("name").asText();
+    private String eventName(JsonNode node) {
+        return node.get(METADATA).path(NAME).asText();
     }
 
     private String eventName(Object obj) throws ClassNotFoundException {
@@ -179,9 +183,7 @@ public class GenericStepDefs {
             this.clazz = classWithFullyQualifiedClassName(aggregate);
             this.object = (Aggregate) clazz.newInstance();
         }
-        if (eventsForAggregate != null) {
-            object.apply(eventsForAggregate);
-        }
+        object.apply(generatedEvents.stream());
     }
 
     private Class<?>[] paramsTypes(final String methodName) {
