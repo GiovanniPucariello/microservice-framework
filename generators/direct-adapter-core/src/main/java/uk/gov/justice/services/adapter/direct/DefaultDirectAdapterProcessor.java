@@ -12,15 +12,17 @@ import java.util.function.Function;
 
 import javax.enterprise.context.ApplicationScoped;
 
-import org.apache.commons.lang3.ArrayUtils;
-
 @ApplicationScoped
 public class DefaultDirectAdapterProcessor implements DirectAdapterProcessor {
 
-    private final String[] supportedActions;
+    private String[] supportedActions;
 
     public DefaultDirectAdapterProcessor(final String[] supportedActions) {
         this.supportedActions = supportedActions;
+    }
+
+    public DefaultDirectAdapterProcessor() {
+
     }
 
     @Override
@@ -33,7 +35,7 @@ public class DefaultDirectAdapterProcessor implements DirectAdapterProcessor {
     }
 
     private void validate(final String actionName) {
-        if (!contains(supportedActions, actionName)) {
+        if (supportedActions != null && !contains(supportedActions, actionName)) {
             throw new IllegalStateException(format("Action name not supported: %s", actionName));
         }
     }
